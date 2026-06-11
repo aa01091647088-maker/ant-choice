@@ -360,7 +360,7 @@ setFinalText(final);
 
   return (
     <div className="container">
-      <h1>조작된 운명999</h1>
+      <h1>조작된 운명</h1>
 
       <div className="optionsGrid">
         {OPTIONS.map((item) => (
