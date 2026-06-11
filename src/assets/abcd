@@ -1,0 +1,457 @@
+import { useState, useRef, useEffect } from "react";
+
+// =====================
+// STATUS
+// =====================
+const STATUS = {
+  IDLE: "idle",
+  RUNNING: "running",
+  RESULT: "result",
+};
+
+// =====================
+// OPTIONS
+// =====================
+const options = [
+  "공중파",
+  "검색순위",
+  "거래량",
+  "신고가",
+  "차트분석",
+  "지인추천",
+  "물타기",
+  "뇌동매매",
+  "리딩방",
+  "시초가",
+  "종가",
+  "운세",
+];
+
+// =====================
+// MEME
+// =====================
+const memeTexts = [
+  "함께라서 행복합니다",
+  "물 들어온다",
+  "니들 먼저 가라",
+  "내가 팔면 올라가냐",
+  "불기둥 세워보자",
+  "대장주야 나 좀 도와주라",
+  "탈탈 털리는구나",
+  "가짜 뉴스에 속지 말자",
+  "쭉 올라간다",
+  "종가 맛 좋다",
+];
+
+const getRandomMeme = () =>
+  memeTexts[Math.floor(Math.random() * memeTexts.length)];
+
+// =====================
+// RANDOM EMOTION IMAGE
+// =====================
+const getRandomEmotionImage = (type) => {
+  const counts = {
+    greed: 8,
+    crash: 8,
+    neutral: 9,
+  };
+
+  const max = counts[type];
+
+  if (!max) {
+    return "/assets/emotion/neutral-1.webp";
+  }
+
+  const randomIndex =
+    Math.floor(Math.random() * max) + 1;
+
+  return `/assets/emotion/${type}-${randomIndex}.webp`;
+};
+
+// =====================
+// INITIAL MARKET STATE
+// =====================
+const initialMarket = {
+  price: 100,
+  trend: 0,
+  volatility: 0.6,
+};
+
+// =====================
+// APP
+// =====================
+export default function App() {
+  const [selectedOptions, setSelectedOptions] = useState([]);
+  const [status, setStatus] = useState(STATUS.IDLE);
+  const [result, setResult] = useState(null);
+  const [countdown, setCountdown] = useState(null);
+
+  const [market, setMarket] = useState(initialMarket);
+
+  const timerRef = useRef(null);
+
+  // =====================
+  // CLEANUP
+  // =====================
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, []);
+
+  // =====================
+  // COUNTDOWN EFFECT
+  // =====================
+  const triggerCountdown = () => {
+    let count = 3;
+    setCountdown(count);
+
+    const interval = setInterval(() => {
+      count -= 1;
+
+      if (count <= 0) {
+        clearInterval(interval);
+        setCountdown(null);
+        return;
+      }
+
+      setCountdown(count);
+    }, 500);
+  };
+
+  // =====================
+  // OPTION TOGGLE
+  // =====================
+  const toggleOption = (opt) => {
+    if (status !== STATUS.IDLE) return;
+
+    setSelectedOptions((prev) => {
+      let next;
+
+      if (prev.includes(opt)) {
+        next = prev.filter((o) => o !== opt);
+      } else {
+        if (prev.length >= 3) return prev;
+        next = [...prev, opt];
+      }
+
+      if (next.length === 3) triggerCountdown();
+
+      return next;
+    });
+  };
+
+  // =====================
+  // EMOTION ENGINE
+  // =====================
+  const emotionEngine = (opts) => {
+    let sentiment = 0;
+
+    // 📈 긍정 심리
+    if (opts.includes("공중파")) sentiment += 0.2;
+    if (opts.includes("검색순위")) sentiment += 0.1;
+    if (opts.includes("신고가")) sentiment += 0.3;
+    if (opts.includes("거래량")) sentiment += 0.2;
+
+    // 🔥 상승 강화
+    if (opts.includes("급등주")) sentiment += 0.35;
+    if (opts.includes("차트분석")) sentiment += 0.15;
+    if (opts.includes("시초가")) sentiment += 0.2;
+    if (opts.includes("종가")) sentiment += 0.1;
+
+    // 📉 부정 심리
+    if (opts.includes("리딩방")) sentiment -= 0.4;
+    if (opts.includes("뇌동매매")) sentiment -= 0.3;
+    if (opts.includes("물타기")) sentiment -= 0.2;
+
+    // 🧿 왜곡
+    if (opts.includes("운세")) sentiment -= 0.5;
+
+    return Math.max(-1, Math.min(1, sentiment));
+  };
+
+  // =====================
+  // RULE ENGINE
+  // =====================
+  const ruleEngine = (opts) => {
+    let bias = 0;
+
+    if (
+      opts.includes("거래량") &&
+      opts.includes("신고가")
+    ) {
+      bias += 0.6;
+    }
+
+    if (
+      opts.includes("물타기") &&
+      opts.includes("뇌동매매") &&
+      opts.includes("리딩방")
+    ) {
+      bias -= 0.7;
+    }
+
+    if (
+      opts.includes("차트분석") &&
+      opts.includes("검색순위") &&
+      opts.includes("공중파")
+    ) {
+      bias += 0.4;
+    }
+
+    if (opts.length === 0) bias += 0.1;
+
+    return bias;
+  };
+
+  // =====================
+  // RANDOM WALK
+  // =====================
+  const randomWalk = (
+    market,
+    bias,
+    sentiment
+  ) => {
+    const noise =
+      (Math.random() - 0.5) *
+      market.volatility;
+
+    const drift =
+      bias * 0.6 +
+      sentiment * 0.8 +
+      noise;
+
+    const newPrice = Math.max(
+      1,
+      market.price +
+        market.price * drift * 0.03
+    );
+
+    let trend =
+      market.trend + drift * 0.25;
+
+    trend = Math.max(
+      -1,
+      Math.min(1, trend)
+    );
+
+    return {
+      ...market,
+      price: newPrice,
+      trend,
+    };
+  };
+
+  // =====================
+  // FINAL MARKET ENGINE
+  // =====================
+  const computeMarket = (
+    opts,
+    market
+  ) => {
+    const sentiment =
+      emotionEngine(opts);
+
+    const bias = ruleEngine(opts);
+
+    const newMarket = randomWalk(
+      market,
+      bias,
+      sentiment
+    );
+
+    let resultText = "횡보 구간";
+
+    // 🎭 emotion image type
+    let emotionType = "neutral";
+
+    if (newMarket.trend > 0.6) {
+      resultText = "강한 상승 추세";
+      emotionType = "greed";
+    } else if (newMarket.trend > 0.2) {
+      resultText = "상승 흐름";
+      emotionType = "greed";
+    } else if (newMarket.trend < -0.6) {
+      resultText = "패닉 매도 흐름";
+      emotionType = "crash";
+    } else if (newMarket.trend < -0.2) {
+      resultText = "하락 압력";
+      emotionType = "crash";
+    }
+
+    // 🎲 random image
+    const emotionImage =
+      getRandomEmotionImage(
+        emotionType
+      );
+
+    return {
+      market: newMarket,
+      sentiment,
+      bias,
+      resultText,
+      emotionImage,
+    };
+  };
+
+  // =====================
+  // START
+  // =====================
+  const handleStart = () => {
+    if (status !== STATUS.IDLE)
+      return;
+
+    setStatus(STATUS.RUNNING);
+
+    timerRef.current = setTimeout(() => {
+      const result =
+        computeMarket(
+          selectedOptions,
+          market
+        );
+
+      const meme = getRandomMeme();
+
+      setMarket(result.market);
+
+      setResult({
+        topText: `감정 ${result.sentiment.toFixed(
+          2
+        )} / Bias ${result.bias.toFixed(
+          2
+        )}`,
+
+        resultText:
+          result.resultText,
+
+        bottomText: meme,
+
+        emotionImage:
+          result.emotionImage,
+      });
+
+      setStatus(STATUS.RESULT);
+
+      setTimeout(() => {
+        setResult(null);
+        setSelectedOptions([]);
+        setStatus(STATUS.IDLE);
+      }, 2500);
+    }, 3000);
+  };
+
+  // =====================
+  // UI STYLE
+  // =====================
+  const emotionStyle = {
+    idle: "bg-white text-black",
+    running:
+      "bg-gray-200 animate-pulse",
+    result: "bg-black text-white",
+  };
+
+  // =====================
+  // UI
+  // =====================
+ return (
+  <div
+    className={`w-full min-h-screen flex justify-center items-center ${emotionStyle[status]}`}
+  >
+    <div className="w-full max-w-sm min-h-screen flex flex-col bg-gray-50 border border-gray-300">
+
+      {/* OPTIONS */}
+      <div className="relative">
+        <div className="p-2 grid grid-cols-3 gap-1">
+          {options.map((opt) => {
+            const isSelected =
+              selectedOptions.includes(opt);
+
+            return (
+              <button
+                key={opt}
+                onClick={() =>
+                  toggleOption(opt)
+                }
+                className={`text-xs p-2 border rounded transition-all active:scale-95
+                ${
+                  isSelected
+                    ? "bg-black text-white"
+                    : "bg-white"
+                }`}
+              >
+                {opt}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* COUNTDOWN */}
+        {countdown && (
+          <div className="absolute top-2 left-1/2 -translate-x-1/2 text-xl font-bold text-red-500">
+            {countdown}
+          </div>
+        )}
+      </div>
+
+      {/* MARKET DISPLAY */}
+      <div className="flex-1 flex flex-col items-center justify-center bg-gray-200 px-4">
+
+        {/* RUNNING */}
+        {status === STATUS.RUNNING && (
+          <div className="text-sm animate-pulse">
+            시장 시뮬레이션 중...
+          </div>
+        )}
+
+        {/* RESULT */}
+        {result && (
+          <>
+            {/* IMAGE */}
+            <img
+              src={result.emotionImage}
+              alt="emotion"
+              className="w-52 h-52 object-cover rounded-xl shadow-lg mb-4"
+            />
+
+            {/* INFO */}
+            <div className="text-xs mb-2">
+              {result.topText}
+            </div>
+
+            {/* RESULT TEXT */}
+            <div className="text-lg font-bold text-center px-4">
+              {result.resultText}
+            </div>
+
+            {/* MEME */}
+            <div className="text-xs mt-2">
+              {result.bottomText}
+            </div>
+
+            {/* PRICE */}
+            <div className="mt-4 text-xs opacity-70">
+              PRICE:{" "}
+              {market.price.toFixed(2)}
+            </div>
+          </>
+        )}
+
+        {/* EMPTY STATE */}
+        {!result &&
+          status === STATUS.IDLE && (
+            <div className="text-sm text-gray-500">
+              옵션을 선택하고 시작하세요
+            </div>
+          )}
+      </div>
+
+      {/* START */}
+      <button
+        onClick={handleStart}
+        className="w-full bg-black text-white p-3 text-sm"
+      >
+        시작
+      </button>
+    </div>
+  </div>
+); 
