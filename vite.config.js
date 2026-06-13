@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
-  base: '/ant-choice/',   // 👈 이거 추가 (핵심)
+  base: '/',      // ← 이걸로 변경
   server: {
     host: true,
   },
